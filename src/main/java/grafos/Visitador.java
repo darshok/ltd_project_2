@@ -1,13 +1,15 @@
 package grafos;
 	
+import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 
 import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.MethodDeclaration;
-import com.github.javaparser.ast.stmt.BlockStmt;
-import com.github.javaparser.ast.stmt.ExpressionStmt;
-import com.github.javaparser.ast.stmt.Statement;
+import com.github.javaparser.ast.stmt.*;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
+
+import javax.swing.plaf.nimbus.State;
 
 
 public class Visitador extends VoidVisitorAdapter<CFG>
@@ -20,6 +22,8 @@ public class Visitador extends VoidVisitorAdapter<CFG>
 	int contador=1;
 	String nodoAnterior = "Start";
 	String nodoActual = "";
+	List<String> listaNodosControl = new ArrayList<>();
+	List<String> listaTiposNodos = new ArrayList<>();
 	
 	/********************************************************/
 	/*********************** Metodos ************************/
@@ -43,14 +47,26 @@ public class Visitador extends VoidVisitorAdapter<CFG>
 	public void visit(ExpressionStmt es, CFG cfg)
 	{
 		// Creamos el nodo actual
-		nodoActual = crearNodo(es); 
-				
+		nodoActual = crearNodo(es);
+
 		crearArcos(cfg);
 				
 		nodoAnterior = nodoActual;
 		
 		// Seguimos visitando...
 		super.visit(es, cfg);
+	}
+
+	@Override
+	public void visit(IfStmt ifStmt, CFG cfg){
+
+		nodoActual = crearNodo("if (" + ifStmt.getCondition() + ")");
+
+		crearArcos(cfg);
+
+		nodoAnterior = nodoActual;
+
+		ifStmt.getThenStmt().accept(this,cfg);
 	}
 	
 	// Añade un arco desde el último nodo hasta el nodo actual (se le pasa como parametro)
