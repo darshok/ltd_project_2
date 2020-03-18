@@ -1,15 +1,13 @@
 package grafos;
 	
 import java.util.ArrayList;
-import java.util.LinkedList;
 import java.util.List;
 
 import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.MethodDeclaration;
+import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.stmt.*;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
-
-import javax.swing.plaf.nimbus.State;
 
 
 public class Visitador extends VoidVisitorAdapter<CFG>
@@ -24,7 +22,8 @@ public class Visitador extends VoidVisitorAdapter<CFG>
 	String nodoActual = "";
 	List<String> listaNodosControl = new ArrayList<>();
 	List<String> listaTiposNodos = new ArrayList<>();
-	
+	Expression ifCondition;
+
 	/********************************************************/
 	/*********************** Metodos ************************/
 	/********************************************************/
@@ -38,7 +37,7 @@ public class Visitador extends VoidVisitorAdapter<CFG>
 		super.visit(methodDeclaration, cfg);
 		
 		// Añadimos el nodo final al CFG
-		//collector.add(nodoAnterior+"-> Stop;");
+		cfg.arcos.add(nodoAnterior+"-> Stop;");
 	}
 	
 	// Visitador de expresiones
@@ -50,7 +49,9 @@ public class Visitador extends VoidVisitorAdapter<CFG>
 		nodoActual = crearNodo(es);
 
 		crearArcos(cfg);
-				
+
+		checkLastNode(cfg);
+
 		nodoAnterior = nodoActual;
 		
 		// Seguimos visitando...
@@ -60,13 +61,43 @@ public class Visitador extends VoidVisitorAdapter<CFG>
 	@Override
 	public void visit(IfStmt ifStmt, CFG cfg){
 
-		nodoActual = crearNodo("if (" + ifStmt.getCondition() + ")");
-
+		ifCondition = ifStmt.getCondition();
+		nodoActual = crearNodo(" if (" + ifCondition + ")");
+		final String ifNode =  nodoActual;
+		checkLastNode(cfg);
 		crearArcos(cfg);
-
 		nodoAnterior = nodoActual;
 
 		ifStmt.getThenStmt().accept(this,cfg);
+
+		final String thenLastNode = nodoAnterior;
+
+		if(ifStmt.getElseStmt().isPresent()) {
+			nodoAnterior = ifNode;
+			ifStmt.getElseStmt().get().accept(this,cfg);
+			listaTiposNodos.add("ifElse");
+			listaNodosControl.add(thenLastNode);
+		} else {
+			listaTiposNodos.add("ifThen");
+			listaNodosControl.add(ifNode);
+		}
+
+	}
+	//Comprueba si salimos de un if else y crea el arco
+	private void checkLastNode(CFG cfg){
+		while (!listaNodosControl.isEmpty()) {
+			int lastTipo = listaTiposNodos.size()-1;
+			int lastNodo = listaNodosControl.size()-1;
+			if(listaTiposNodos.get(lastTipo) == "ifElse"){
+				añadirArco(cfg, listaNodosControl.get(lastNodo));
+				listaTiposNodos.remove(lastTipo);
+				listaNodosControl.remove(lastNodo);
+			} else if (listaTiposNodos.get(lastTipo) == "ifThen") {
+				añadirArco(cfg, listaNodosControl.get(lastNodo));
+				listaTiposNodos.remove(lastTipo);
+				listaNodosControl.remove(lastNodo);
+			} else break;
+		}
 	}
 	
 	// Añade un arco desde el último nodo hasta el nodo actual (se le pasa como parametro)
@@ -75,6 +106,14 @@ public class Visitador extends VoidVisitorAdapter<CFG>
 		System.out.println("NODO: " + nodoActual);
 		
 		String arco = nodoAnterior + "->" + nodoActual + ";";
+		cfg.arcos.add(arco);
+	}
+
+	private void añadirArco(CFG cfg, String nodo)
+	{
+		System.out.println("NODO: " + nodoActual);
+
+		String arco = nodo + "->" + nodoActual + ";";
 		cfg.arcos.add(arco);
 	}
 	
