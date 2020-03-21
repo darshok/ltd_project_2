@@ -23,6 +23,7 @@ public class Visitador extends VoidVisitorAdapter<CFG>
 	List<String> listaNodosControl = new ArrayList<>();
 	List<String> listaTiposNodos = new ArrayList<>();
 	Expression ifCondition;
+	Expression whileCondition;
 
 	/********************************************************/
 	/*********************** Metodos ************************/
@@ -60,7 +61,6 @@ public class Visitador extends VoidVisitorAdapter<CFG>
 
 	@Override
 	public void visit(IfStmt ifStmt, CFG cfg){
-
 		ifCondition = ifStmt.getCondition();
 		nodoActual = crearNodo(" if (" + ifCondition + ")");
 		final String ifNode =  nodoActual;
@@ -81,8 +81,26 @@ public class Visitador extends VoidVisitorAdapter<CFG>
 			listaTiposNodos.add("ifThen");
 			listaNodosControl.add(ifNode);
 		}
-
 	}
+
+	@Override
+	public void visit(WhileStmt whileStmt, CFG cfg){
+		whileCondition = whileStmt.getCondition();
+		nodoActual = crearNodo("while (" + whileCondition + ")");
+		final String whileNode = nodoActual;
+
+		checkLastNode(cfg);
+
+		añadirArcoSecuencialCFG(cfg);
+		nodoAnterior = nodoActual;
+
+		whileStmt.getBody().accept(this,cfg);
+		nodoAnterior = nodoActual;
+		nodoActual = whileNode;
+		añadirArcoSecuencialCFG(cfg);
+		nodoAnterior = whileNode;
+	}
+
 	//Comprueba si salimos de un if else y crea el arco
 	private void checkLastNode(CFG cfg){
 		while (!listaNodosControl.isEmpty()) {
