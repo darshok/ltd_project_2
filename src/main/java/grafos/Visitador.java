@@ -2,6 +2,7 @@ package grafos;
 	
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.MethodDeclaration;
@@ -18,12 +19,18 @@ public class Visitador extends VoidVisitorAdapter<CFG>
 	
 	// Usamos un contador para numerar las instrucciones
 	int contador=1;
-	String nodoAnterior = "Start";
 	String nodoActual = "";
-	List<String> listaNodosControl = new ArrayList<>();
+/*	String nodoAnterior = "Start";
+	String nodoIni = "";
 	List<String> listaTiposNodos = new ArrayList<>();
+	List<String> listaNodosControl = new ArrayList<>();*/
+	List<String> listaNodos = new ArrayList<>();
 	Expression ifCondition;
 	Expression whileCondition;
+	Expression doCondition;
+	List<Expression> forIni = new ArrayList<>();
+	Optional forCondition;
+	List<Expression> forUpd = new ArrayList<>();
 
 	/********************************************************/
 	/*********************** Metodos ************************/
@@ -34,11 +41,13 @@ public class Visitador extends VoidVisitorAdapter<CFG>
 	@Override	
 	public void visit(MethodDeclaration methodDeclaration, CFG cfg)
 	{
+		listaNodos.add("Start");
 	    // Visitamos el método
 		super.visit(methodDeclaration, cfg);
-		
 		// Añadimos el nodo final al CFG
-		cfg.arcos.add(nodoAnterior+"-> Stop;");
+		for(String nodo : listaNodos) {
+			cfg.arcos.add(nodo + "-> Stop;");
+		}
 	}
 	
 	// Visitador de expresiones
@@ -48,13 +57,13 @@ public class Visitador extends VoidVisitorAdapter<CFG>
 	{
 		// Creamos el nodo actual
 		nodoActual = crearNodo(es);
-
 		crearArcos(cfg);
+//		checkLastNode(cfg);
+//		nodoAnterior = nodoActual;
 
-		checkLastNode(cfg);
+		listaNodos.clear();
+		listaNodos.add(nodoActual);
 
-		nodoAnterior = nodoActual;
-		
 		// Seguimos visitando...
 		super.visit(es, cfg);
 	}
@@ -63,23 +72,31 @@ public class Visitador extends VoidVisitorAdapter<CFG>
 	public void visit(IfStmt ifStmt, CFG cfg){
 		ifCondition = ifStmt.getCondition();
 		nodoActual = crearNodo(" if (" + ifCondition + ")");
-		final String ifNode =  nodoActual;
-		checkLastNode(cfg);
-		crearArcos(cfg);
-		nodoAnterior = nodoActual;
 
+		String ifNode =  nodoActual;
+//		checkLastNode(cfg);
+		crearArcos(cfg);
+//		nodoAnterior = nodoActual;
+		listaNodos.clear();
+		listaNodos.add(nodoActual);
 		ifStmt.getThenStmt().accept(this,cfg);
 
-		final String thenLastNode = nodoAnterior;
+//		String thenLastNode = nodoAnterior;
+		List<String> listThen = new ArrayList<>(listaNodos);
 
 		if(ifStmt.getElseStmt().isPresent()) {
-			nodoAnterior = ifNode;
+//			nodoAnterior = ifNode;
+			listaNodos.clear();
+			listaNodos.add(ifNode);
 			ifStmt.getElseStmt().get().accept(this,cfg);
-			listaTiposNodos.add("ifElse");
-			listaNodosControl.add(thenLastNode);
+
+/*			listaTiposNodos.add("ifElse");
+			listaNodosControl.add(thenLastNode);*/
+			listaNodos.addAll(listThen);
 		} else {
-			listaTiposNodos.add("ifThen");
-			listaNodosControl.add(ifNode);
+			/*listaTiposNodos.add("ifThen");
+			listaNodosControl.add(ifNode);*/
+			listaNodos.add(ifNode);
 		}
 	}
 
@@ -87,21 +104,87 @@ public class Visitador extends VoidVisitorAdapter<CFG>
 	public void visit(WhileStmt whileStmt, CFG cfg){
 		whileCondition = whileStmt.getCondition();
 		nodoActual = crearNodo("while (" + whileCondition + ")");
-		final String whileNode = nodoActual;
+		String whileNode = nodoActual;
 
-		checkLastNode(cfg);
+/*		listaTiposNodos.add("while");
+		listaNodosControl.add(whileNode);
+		checkLastNode(cfg);*/
 
-		añadirArcoSecuencialCFG(cfg);
-		nodoAnterior = nodoActual;
+		crearArcos(cfg);
+		listaNodos.clear();
+		listaNodos.add(nodoActual);
+//		nodoAnterior = nodoActual;
 
 		whileStmt.getBody().accept(this,cfg);
-		nodoAnterior = nodoActual;
+//		nodoAnterior = nodoActual;
 		nodoActual = whileNode;
-		añadirArcoSecuencialCFG(cfg);
-		nodoAnterior = whileNode;
+		crearArcos(cfg);
+//		nodoAnterior = whileNode;
+		listaNodos.clear();
+		listaNodos.add(whileNode);
 	}
 
-	//Comprueba si salimos de un if else y crea el arco
+	@Override
+	public void visit(DoStmt doStmt, CFG cfg){
+		doCondition = doStmt.getCondition();
+		String doNode = crearNodo("Do");
+		nodoActual = doNode;
+		crearArcos(cfg);
+
+/*		listaTiposNodos.add("doWhile");
+		listaNodosControl.add(crearNodo(doStmt));*/
+		listaNodos.clear();
+		listaNodos.add(doNode);
+
+		doStmt.getBody().accept(this, cfg);
+
+		/*String endNode = nodoAnterior;
+		String whileNode = crearNodo("while (" + doCondition + ")");*/
+		List<String> finalNodes = new ArrayList<>(listaNodos);
+		String whileNode = crearNodo("while (" + doCondition + ")");
+
+		listaNodos.clear();
+		listaNodos.add(whileNode);
+		nodoActual = doNode;
+		crearArcos(cfg);
+
+		for(String nodo : finalNodes){
+			añadirArco(cfg, nodo, whileNode);
+		}
+
+		/*nodoAnterior = whileNode;
+		nodoActual = endNode;
+		añadirArcoSecuencialCFG(cfg);
+		añadirArco(cfg, whileNode, nodoIni);*/
+	}
+
+	@Override
+	public void visit(ForStmt forStmt, CFG cfg){
+		forIni = forStmt.getInitialization();
+		String iniNode = crearNodo(forIni);
+		nodoActual = iniNode;
+		crearArcos(cfg);
+		listaNodos.clear();
+		listaNodos.add(nodoActual);
+
+		forCondition = forStmt.getCompare();
+		String condNode = crearNodo("for (" + forCondition.get() + ")");
+		nodoActual = condNode;
+		crearArcos(cfg);
+		listaNodos.clear();
+		listaNodos.add(nodoActual);
+
+		forUpd = forStmt.getUpdate();
+		String updNode = crearNodo(forUpd);
+		forStmt.getBody().accept(this, cfg);
+		nodoActual = updNode;
+		crearArcos(cfg);
+		añadirArco(cfg,updNode,condNode);
+		listaNodos.clear();
+		listaNodos.add(condNode);
+	}
+
+	/*//Comprueba si salimos de un if else y crea el arco
 	private void checkLastNode(CFG cfg){
 		while (!listaNodosControl.isEmpty()) {
 			int lastTipo = listaTiposNodos.size()-1;
@@ -114,24 +197,43 @@ public class Visitador extends VoidVisitorAdapter<CFG>
 				añadirArco(cfg, listaNodosControl.get(lastNodo));
 				listaTiposNodos.remove(lastTipo);
 				listaNodosControl.remove(lastNodo);
+			} else if(listaTiposNodos.get(lastTipo) == "doWhile"){
+				nodoIni = nodoActual;
+				listaNodosControl.remove(lastNodo);
+				listaTiposNodos.remove(lastTipo);
+			} else if(listaTiposNodos.get(lastTipo) == "while"){
+				añadirArco(cfg, listaNodosControl.get(lastNodo));
+				listaNodosControl.remove(lastNodo);
+				listaTiposNodos.remove(lastTipo);
 			} else break;
 		}
-	}
+	}*/
 	
 	// Añade un arco desde el último nodo hasta el nodo actual (se le pasa como parametro)
 	private void añadirArcoSecuencialCFG(CFG cfg)
 	{
 		System.out.println("NODO: " + nodoActual);
 		
-		String arco = nodoAnterior + "->" + nodoActual + ";";
-		cfg.arcos.add(arco);
+		for(String nodo : listaNodos){
+			String arco = nodo + "->" + nodoActual + ";";
+			cfg.arcos.add(arco);
+		}
 	}
 
-	private void añadirArco(CFG cfg, String nodo)
+	/*private void añadirArco(CFG cfg, String nodo)
 	{
 		System.out.println("NODO: " + nodoActual);
 
 		String arco = nodo + "->" + nodoActual + ";";
+		cfg.arcos.add(arco);
+	}*/
+
+	// Añade un arco de un nodo1 a un nodo2
+	private void añadirArco(CFG cfg, String nodo1, String nodo2)
+	{
+		System.out.println("NODO: " + nodo2);
+
+		String arco = nodo1 + "->" + nodo2 + ";";
 		cfg.arcos.add(arco);
 	}
 	
