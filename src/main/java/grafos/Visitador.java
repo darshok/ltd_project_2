@@ -82,6 +82,7 @@ public class Visitador extends VoidVisitorAdapter<CFG>
 		ifStmt.getThenStmt().accept(this,cfg);
 
 //		String thenLastNode = nodoAnterior;
+		// auxiliar que guarda los nodos de antes del then
 		List<String> listThen = new ArrayList<>(listaNodos);
 
 		if(ifStmt.getElseStmt().isPresent()) {
@@ -127,7 +128,7 @@ public class Visitador extends VoidVisitorAdapter<CFG>
 	@Override
 	public void visit(DoStmt doStmt, CFG cfg){
 		doCondition = doStmt.getCondition();
-		String doNode = crearNodo("Do");
+		String doNode = crearNodo("do");
 		nodoActual = doNode;
 		crearArcos(cfg);
 
